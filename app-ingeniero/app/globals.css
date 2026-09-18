@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #080808;
+  --bg2: #101010;
+  --bg3: #181818;
+  --bg4: #1f1f1f;
+  --acc: #e8003a;
+  --acc2: #ff1a50;
+  --txt: #f2f2f2;
+  --muted: #888;
+  --muted2: #555;
+  --border: #222;
+  --border2: #2e2e2e;
+  --green: #1D9E75;
+  --radius: 10px;
+  --radius-sm: 7px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* Hide scrollbar for horizontal scrolling elements */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { scrollbar-width: none; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s infinite;
+}
+
+/* Recharts custom */
+.recharts-cartesian-axis-tick-value {
+  fill: #888 !important;
+  font-size: 10px !important;
+}
+
+[data-hydration-error] { display: none !important; }
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}

@@ -1,0 +1,43 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  sessionId String
+  ticker    String
+  createdAt DateTime @default(now())
+
+  @@unique([sessionId, ticker])
+  @@index([sessionId])
+}
+
+model PriceAlert {
+  id          String   @id @default(cuid())
+  sessionId   String
+  ticker      String
+  targetPrice Float
+  alertType   String   @default("above") // above or below
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId])
+}
+
+model Portfolio {
+  id             String   @id @default(cuid())
+  sessionId      String
+  ticker         String
+  amountInvested Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([sessionId, ticker])
+  @@index([sessionId])
+}
