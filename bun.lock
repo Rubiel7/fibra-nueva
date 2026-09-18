@@ -5,7 +5,7 @@
     "": {
       "name": "hatch-ts-space-fibrasmx-2",
       "dependencies": {
-        "@hatch/space-sdk": "file:/opt/hatch/skills/spaces/ts-runtime/dist/space-sdk.tgz",
+        "@hatch/space-sdk": "file:./vendor/space-sdk.tgz",
         "@tanstack/react-query": "5.100.10",
         "drizzle-orm": "0.45.2",
         "react": "19.2.5",
@@ -31,7 +31,7 @@
 
     "@deno/shim-deno-test": ["@deno/shim-deno-test@0.5.0", "", {}, "sha512-4nMhecpGlPi0cSzT67L+Tm+GOJqvuk8gqHBziqcUQOarnuIax1z96/gJHCSIz2Z0zhxE6Rzwb3IZXPtFh51j+w=="],
 
-    "@hatch/space-sdk": ["@hatch/space-sdk@/opt/hatch/skills/spaces/ts-runtime/dist/space-sdk.tgz", { "dependencies": { "bun-plugin-tailwind": "0.0.15", "zod": "4.4.3" }, "peerDependencies": { "@libsql/client": "^0.14", "@tanstack/react-query": "^5", "drizzle-orm": "^0.45", "react": "^18 || ^19", "typescript": "^5" } }, "sha512-HNj18u1S+P6mAFiR4QNn4Lj85ZR+tRuecvhUMgaA7y+yYEJQTEt4r1lAHLzEA6IiU2pJMnm610jcoP9vC/Y1pw=="],
+    "@hatch/space-sdk": ["@hatch/space-sdk@./vendor/space-sdk.tgz", { "dependencies": { "bun-plugin-tailwind": "0.0.15", "zod": "4.4.3" }, "peerDependencies": { "@libsql/client": "^0.14", "@tanstack/react-query": "^5", "drizzle-orm": "^0.45", "react": "^18 || ^19", "typescript": "^5" } }, "sha512-HNj18u1S+P6mAFiR4QNn4Lj85ZR+tRuecvhUMgaA7y+yYEJQTEt4r1lAHLzEA6IiU2pJMnm610jcoP9vC/Y1pw=="],
 
     "@hono/node-server": ["@hono/node-server@2.1.1", "", { "peerDependencies": { "hono": "^4" } }, "sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg=="],
 

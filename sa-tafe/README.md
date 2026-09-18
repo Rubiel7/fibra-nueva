@@ -1,139 +1,99 @@
-# SA-TAFE para FibrasMX
+# SA-TAFE — motor de pronóstico semanal para FibrasMX
 
-Motor de pronóstico semanal para las 16 FIBRAs del sitio FibrasMX, basado en la
-metodología TAFE del paper MDPI 2026 (Purata-Aldaz et al., *Simulated Annealing
-Applied to Alternative Assets in Mexican Stock Exchange*).
+## Qué es
 
-## Metodología (en lenguaje simple)
+SA-TAFE es el motor de pronóstico semanal que produce las señales cuantitativas
+de las FIBRAs listadas en el sitio FibrasMX (16 tickers del universo). La
+metodología TAFE sigue el paper MDPI 2026 de Purata-Aldaz et al.
+(*Simulated Annealing Applied to Alternative Assets in Mexican Stock Exchange*),
+adaptado con implementación propia en numpy/pandas (sin statsmodels ni yfinance).
+
+En lenguaje simple, cada corrida:
 
 1. **Descarga** los cierres semanales de cada FIBRA desde Yahoo Finance
-   (hasta 5 años de historia; se exigen mínimo 78 semanas).
-2. **6 pronosticadores base** intentan adivinar el precio futuro, cada uno con
-   su lógica:
-   - *naive*: "mañana vale lo mismo que hoy";
-   - *drift*: sigue la tendencia recta de toda la historia;
-   - *seasonal_naive*: "vale lo que valía hace 52 semanas";
-   - *ar*: un modelo autorregresivo AR(p) ajustado por mínimos cuadrados
-     (el orden p se elige con el criterio AIC);
-   - *holt*: suavizado exponencial con tendencia lineal (Holt);
-   - *ma12*: el promedio de las últimas 12 semanas.
-3. **Validación rolling-origin**: se retrocede a varios puntos dentro de las
-   últimas 26 semanas, se pronostica desde ahí y se mide el error con **sMAPE**
-   (error porcentual absoluto simétrico). Es la misma métrica y el mismo
-   horizonte (26 semanas) que usa el paper.
-4. **Threshold Accepting**: un algoritmo de optimización busca la mejor
-   combinación de pesos de los 6 pronosticadores (pesos que suman 1). Empieza
-   con pesos iguales, prueba pequeños cambios y acepta el cambio si el sMAPE
-   no empeora más que un umbral T; T se va reduciendo (×0.95 por ronda)
-   durante 200 rondas. Gana la combinación con menor sMAPE de validación.
-5. **Pronóstico final**: con los pesos óptimos se pronostican las próximas
-   26 semanas y se calcula el retorno esperado
-   `(precio_pronosticado_final / precio_actual − 1)` y la varianza de los
+   (hasta 5 años de historia; exige mínimo 78 semanas) con `requests`.
+2. **6 pronosticadores base** intentan predecir el precio futuro: `naive`,
+   `drift`, `seasonal_naive`, `ar` (autorregresivo con orden elegido por AIC),
+   `holt` (suavizado exponencial con tendencia) y `ma12` (promedio de 12 semanas).
+3. **Validación rolling-origin**: retrocede a varios puntos dentro de las
+   últimas 26 semanas, pronostica desde ahí y mide el error con **sMAPE**
+   (misma métrica y horizonte de 26 semanas que el paper).
+4. **Threshold Accepting**: optimiza los pesos de los 6 pronosticadores
+   (suman 1) durante 200 rondas, aceptando cambios que no empeoren el sMAPE
+   más allá de un umbral T decreciente. Gana la combinación con menor error.
+5. **Pronóstico final** a 26 semanas: retorno esperado
+   `(precio_pronosticado_final / precio_actual − 1)` y varianza de los
    retornos semanales implícitos.
 
 ## Regla de señales
 
-Las FIBRAs cubiertas se **ordenan por retorno esperado a 26 semanas** y se
-parten en tercios:
+Las FIBRAs con datos válidos se **ordenan por retorno esperado a 26 semanas**
+y se parten en tercios: **tercio superior → COMPRAR**, **medio → MANTENER**,
+**inferior → VENDER**. Toda señal lleva la etiqueta obligatoria
+**"señal del modelo (no recomendación)"**. El "portafolio" del JSON es el
+promedio simple de los miembros del tercio COMPRAR. No es asesoría financiera.
 
-- tercio superior → **COMPRAR**
-- tercio medio → **MANTENER**
-- tercio inferior → **VENDER**
+**Restricción dura (del pipeline):** ningún dato inventado. Si la descarga o el
+cálculo falla para un ticker, queda `status: "SIN_DATOS"` y el motivo se
+registra en `notes`. Hoy eso aplica a **NEXT25** (Fibra Next): va en el JSON
+como `SIN_DATOS`, sin precios ni números inventados.
 
-Toda señal lleva la etiqueta **"señal del modelo (no recomendación)"**.
-El "portafolio" del JSON es el promedio simple de los miembros del tercio
-COMPRAR. No es asesoría financiera.
+## Qué hace `run_weekly.py`
 
-## Cómo correrlo
+Es el pipeline semanal completo, en este orden:
 
-```bash
-cd ~/workspace/goals/fibrasmx-website/sa-tafe
-python3 run_weekly.py
-```
-
-Solo requiere `numpy`, `pandas` y `requests` (nada más instalado en esta VM).
-Escribe `results/sa-tafe-latest.json` y una copia fechada
-`results/sa-tafe-YYYY-MM-DD.json` (fecha en horario de México).
+1. Descarga los cierres semanales de cada ticker del universo (`tickers.py`:
+   16 tickers + validación de que el nombre devuelto por Yahoo corresponda).
+2. Corre el motor TAFE (`tafe_engine.py`) ticker por ticker.
+3. Verifica sanidad de cada resultado (nada de NaN; retornos en rango razonable).
+4. Asigna señales por tercios y arma el "portafolio" COMPRAR.
+5. Escribe **dos archivos idénticos**:
+   - `results/sa-tafe-latest.json` (la corrida más reciente)
+   - `results/sa-tafe-YYYY-MM-DD.json` (copia fechada; fecha en
+     horario America/Chicago)
 
 ## Archivos
 
-- `tickers.py` — universo de 16 tickers + validación de que el nombre que
-  devuelve Yahoo corresponde a una FIBRA. Si no (caso NEXT25.MX, que Yahoo
-  resuelve a "Nearshoring Experts & Technology, S.C."), el ticker queda
-  **SIN_DATOS / NO VERIFICADO** sin inventar nada.
-- `tafe_engine.py` — descarga, los 6 pronosticadores base, validación
-  rolling-origin, Threshold Accepting y pronóstico a 26 semanas.
-- `run_weekly.py` — pipeline completo + asignación de señales por tercios +
-  escritura del JSON.
-- `results/` — salidas JSON.
+- `tafe_engine.py` — motor TAFE (descarga, 6 base learners, validación,
+  Threshold Accepting, pronóstico a 26 semanas).
+- `run_weekly.py` — pipeline semanal descrito arriba.
+- `tickers.py` — universo de 16 tickers + validación de nombres de Yahoo.
+- `results/` — salidas: `sa-tafe-latest.json` y copias fechadas.
+- `requirements.txt` — dependencias de terceros (`numpy`, `pandas`, `requests`).
 
-## Limitaciones honestas
+Fuente (solo lectura): `~/workspace/goals/fibrasmx-website/sa-tafe`
+(no se incluye `site-integration/`, documentado por otro ingeniero).
 
-- **Solo ve precios.** No sabe de emisiones de CBFIs, cambios de administración,
-  resultados trimestrales, tasas de interés ni noticias. Un evento corporativo
-  puede invalidar el pronóstico de un día para otro.
-- **Los pronósticos fallan.** El propio paper reporta que el ensemble optimizado
-  se degrada fuera de muestra cuando hay cambios de régimen; los pesos se
-  ajustan al pasado, no al futuro.
-- **FMTY14**: su serie puede estar distorsionada por la adquisición de
-  Macquarie; el modelo no lo sabe y lo trata como una serie más.
-- **NEXT25** queda SIN_DATOS porque Yahoo no devuelve la FIBRA correcta con
-  ese símbolo; no se sustituye por otro ticker a mano para no inventar datos.
-- Señal del modelo ≠ recomendación de inversión. Es un ejercicio cuantitativo,
-  no asesoría financiera.
+## FLUJO SEMANAL
 
-## Actualización semanal en el sitio
+Cada **lunes ~17:37 (America/Chicago)**:
 
-Los datos del "Laboratorio cuantitativo" viven en **un solo lugar**: la tabla
-`sa_tafe_runs` de la base de datos del artefacto **fibrasmx-2** (app.db). Cada
-corrida semanal es una fila; la sección del sitio siempre muestra la fila con
-`run_date` más reciente. **Actualizar los datos no requiere rebuild ni tocar
-código**: basta insertar la fila de la nueva corrida.
-
-### Procedimiento exacto del job semanal (cada lunes)
-
-1. Correr el motor (genera el JSON de la semana):
+1. **Correr** en este directorio:
    ```bash
-   cd ~/workspace/goals/fibrasmx-website/sa-tafe
    python3 run_weekly.py
    ```
-   Esto escribe `results/sa-tafe-latest.json` y la copia fechada
-   `results/sa-tafe-YYYY-MM-DD.json` (fecha en horario de México).
+   Escribe `results/sa-tafe-latest.json` y la copia fechada
+   `results/sa-tafe-YYYY-MM-DD.json`.
 
-2. Verificar el JSON antes de publicarlo:
-   - `run_date` y `price_cutoff` en formato `YYYY-MM-DD` (p. ej. `2026-09-22`).
-   - `horizon_weeks` = 26.
-   - `tickers` es un arreglo y `portfolio` es un objeto con `members`,
-     `expected_return` y `variance`.
-   - NEXT25 debe seguir como `status: "SIN_DATOS"` sin números inventados.
+2. **Verificar** el JSON generado:
+   - `run_date` y `price_cutoff` en formato `YYYY-MM-DD`;
+   - `horizon_weeks == 26`;
+   - `tickers` es un arreglo con los 16 tickers del universo;
+   - `NEXT25` aparece con `status: "SIN_DATOS"` y **sin números inventados**
+     (`last_price`, `price_date`, `expected_return_26w` deben ser `null`);
+   - revisar `notes` por si hay tickers caídos o avisos.
 
-3. Insertar la corrida en el sitio con la acción del artefacto
-   `saveSaTafeRun` (vía `artifact.invoke_action` sobre el slug `fibrasmx-2`),
-   con estos argumentos exactos:
-   - `runDate`: el valor de `run_date` del JSON, formato `YYYY-MM-DD`.
-   - `priceCutoff`: el valor de `price_cutoff` del JSON, formato `YYYY-MM-DD`.
-   - `horizonWeeks`: el valor de `horizon_weeks` del JSON (número entero, 26).
-   - `payloadJson`: el **contenido completo** de `results/sa-tafe-latest.json`
-     como texto (string JSON, sin modificar).
-   La acción valida que el texto sea JSON válido con `tickers[]` y `portfolio`,
-   y hace **upsert por `runDate`**: si la corrida de esa fecha ya existe, la
-   reemplaza; si no, crea una fila nueva.
+3. **Publicar al sitio** con un upsert por `run_date` usando la acción
+   **`saveSaTafeRun`** del sitio. Es una operación de datos: **sin rebuild y
+   sin tocar código**.
 
-4. Confirmar: abrir la pestaña **Laboratorio** del sitio y verificar que el
-   encabezado diga `Actualizado: <fecha de runDate> · Corte de precios:
-   <fecha de priceCutoff> · Próxima corrida: cada lunes`.
+**Si la corrida falla, NO se publica nada.** El sitio conserva la última
+corrida válida publicada, con su `run_date` visible para el usuario, hasta
+que una corrida posterior sí pase la verificación.
 
-### Qué campos cambian cada semana
+## Instalación
 
-Solo se inserta **una fila nueva** en `sa_tafe_runs` con los 5 campos de arriba.
-Nada más: ni el componente (`client/src/SaTafeLab.tsx`), ni los estilos, ni las
-acciones, ni la migración necesitan cambios. Si alguna semana la corrida falla
-o Yahoo no devuelve datos, **no se inserta nada** y el sitio sigue mostrando la
-última corrida válida con su fecha visible.
-
-### Si la sección aún no existe en el sitio
-
-La primera instalación la hace el builder del artefacto siguiendo
-`site-integration/INTEGRATION.md` (componente + estilos + 2 acciones +
-migración 0009 que siembra la corrida 2026-09-17). Después de eso, el único
-mantenimiento es este procedimiento semanal.
+```bash
+pip install -r requirements.txt
+python3 run_weekly.py
+```

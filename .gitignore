@@ -1,9 +1,27 @@
-*.pyc
-*.tsbuildinfo
-.bun-cache/
-.env
-.next/
-__pycache__/
-dist-cvm/
-dist/
+# Dependencias
 node_modules/
+
+# Salidas de compilación
+dist/
+dist-cvm/
+
+# Caché de bun
+.bun-cache/
+
+# Bases de datos SQLite locales (incluye data/app.db y sus archivos auxiliares)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Variables de entorno locales
+.env
+
+# Python
+__pycache__/
+
+# TypeScript
+*.tsbuildinfo
+
+# macOS
+.DS_Store

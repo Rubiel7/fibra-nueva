@@ -1,0 +1,12 @@
+# SA-TAFE para FibrasMX — dependencias de terceros
+# Detectadas por inspección directa de los imports de
+# tafe_engine.py, run_weekly.py y tickers.py (2026-09-18).
+#
+# Nota: NO usa yfinance ni statsmodels. Los datos se descargan
+# directamente de la API de Yahoo Finance
+# (query1.finance.yahoo.com/v8/finance/chart) con requests.
+# El modelo TAFE está implementado desde cero en numpy/pandas.
+
+numpy
+pandas
+requests
